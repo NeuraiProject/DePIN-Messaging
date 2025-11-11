@@ -7,16 +7,171 @@
 let lastEncryptedMessage = null;
 
 /**
+ * Updates the public key display for a given WIF input
+ * @param {string} wif - The WIF private key
+ * @param {HTMLElement} displayElement - The element to update
+ */
+function updatePubkeyDisplay(wif, displayElement) {
+    if (!wif) {
+        displayElement.innerHTML = '';
+        displayElement.classList.remove('success', 'error', 'info-box--stacked');
+        displayElement.style.display = 'none';
+        return;
+    }
+
+    try {
+        const result = getPublicKeyFromWIF(wif);
+        displayElement.innerHTML = `
+            <span class="info-box__label">✅ Your Neurai address</span>
+            <code class="info-box__value">${escapeHtml(result.address)}</code>
+            <span class="info-box__label">Your public key</span>
+            <code class="info-box__value">${escapeHtml(result.publicKey)}</code>
+        `;
+        displayElement.classList.remove('error');
+        displayElement.classList.add('success', 'info-box--stacked');
+        displayElement.style.display = 'flex';
+    } catch (error) {
+        displayElement.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+        displayElement.classList.remove('success');
+        displayElement.classList.add('error');
+        displayElement.classList.remove('info-box--stacked');
+        displayElement.style.display = 'flex';
+    }
+}
+
+/**
+ * Updates the recipient counter display
+ * @param {string} recipientsText - The textarea value
+ */
+function updateRecipientsCount(recipientsText) {
+    const display = document.getElementById('recipients-count');
+
+    if (!recipientsText.trim()) {
+        display.innerHTML = '';
+        return;
+    }
+
+    const lines = recipientsText.trim().split('\n').filter(line => line.trim().length > 0);
+    let validCount = 0;
+    let invalidCount = 0;
+
+    lines.forEach(line => {
+        const pubKey = line.trim();
+        if (pubKey.length === 66 && /^[0-9a-fA-F]+$/.test(pubKey)) {
+            validCount++;
+        } else {
+            invalidCount++;
+        }
+    });
+
+    if (invalidCount > 0) {
+        display.innerHTML = `<strong>⚠️ ${validCount} valid, ${invalidCount} invalid</strong>`;
+        display.classList.add('error');
+        display.classList.remove('success');
+    } else {
+        display.innerHTML = `<strong>✅ ${validCount} recipient${validCount !== 1 ? 's' : ''}</strong>`;
+        display.classList.remove('error');
+        display.classList.add('success');
+    }
+}
+
+/**
+ * Validates encryption inputs
+ * @param {string} senderWIF - Sender's WIF
+ * @param {string} recipientsText - Recipients' public keys
+ * @param {string} plaintext - Message to encrypt
+ * @returns {Object} - {isValid: boolean, error: string}
+ */
+function validateEncryptionInputs(senderWIF, recipientsText, plaintext) {
+    if (!senderWIF) {
+        return { isValid: false, error: 'You must enter your WIF private key' };
+    }
+
+    if (!recipientsText) {
+        return { isValid: false, error: 'You must enter at least one recipient public key' };
+    }
+
+    if (!plaintext) {
+        return { isValid: false, error: 'Message cannot be empty' };
+    }
+
+    const recipients = recipientsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    if (recipients.length === 0) {
+        return { isValid: false, error: 'You must enter at least one valid public key' };
+    }
+
+    // Validate public keys
+    for (let i = 0; i < recipients.length; i++) {
+        const pubKey = recipients[i];
+        if (pubKey.length !== 66) {
+            return { isValid: false, error: `Recipient ${i + 1}: key must be 66 characters (has ${pubKey.length})` };
+        }
+        if (!/^[0-9a-fA-F]+$/.test(pubKey)) {
+            return { isValid: false, error: `Recipient ${i + 1}: key must be hexadecimal` };
+        }
+    }
+
+    return { isValid: true };
+}
+
+/**
+ * Validates decryption inputs
+ * @param {string} recipientWIF - Recipient's WIF
+ * @param {string} encryptedJSON - Encrypted message JSON
+ * @returns {Object} - {isValid: boolean, error: string, encryptedMsg: Object}
+ */
+function validateDecryptionInputs(recipientWIF, encryptedJSON) {
+    if (!recipientWIF) {
+        return { isValid: false, error: 'You must enter your WIF private key' };
+    }
+
+    if (!encryptedJSON) {
+        return { isValid: false, error: 'You must paste the encrypted message JSON' };
+    }
+
+    let encryptedMsg;
+    try {
+        encryptedMsg = JSON.parse(encryptedJSON);
+    } catch (e) {
+        return { isValid: false, error: 'Invalid JSON: ' + e.message };
+    }
+
+    // Validate structure
+    if (!encryptedMsg.version || !encryptedMsg.ephemeral_public ||
+        !encryptedMsg.ciphertext || !encryptedMsg.encrypted_keys) {
+        return { isValid: false, error: 'Invalid JSON: missing required fields' };
+    }
+
+    return { isValid: true, encryptedMsg };
+}
+
+/**
+ * Shows a result in the result box
+ * @param {HTMLElement} resultBox - The result box element
+ * @param {string} title - The title
+ * @param {string} content - The content
+ * @param {boolean} isSuccess - Whether it's a success or error
+ */
+function showResult(resultBox, title, content, isSuccess = true) {
+    resultBox.innerHTML = `<h3>${isSuccess ? '✅' : '❌'} ${title}</h3>${content}`;
+    resultBox.classList.add('show', isSuccess ? 'success' : 'error');
+    resultBox.classList.remove(isSuccess ? 'error' : 'success');
+}
+
+/**
  * Switches between tabs
  */
 function showTab(evt, tabName) {
     // Hide all tabs
     const tabs = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => tab.classList.remove('active'));
-    
+
     const buttons = document.querySelectorAll('.tab-button');
     buttons.forEach(btn => btn.classList.remove('active'));
-    
+
     // Show selected tab
     document.getElementById(`${tabName}-tab`).classList.add('active');
     const sourceButton = evt?.currentTarget || evt?.target;
@@ -51,32 +206,7 @@ function toggleVisibility(evt, fieldId) {
 document.getElementById('sender-wif')?.addEventListener('input', function() {
     const wif = this.value.trim();
     const display = document.getElementById('sender-pubkey-display');
-    
-    if (!wif) {
-        display.innerHTML = '';
-        display.classList.remove('success', 'error', 'info-box--stacked');
-        display.style.display = 'none';
-        return;
-    }
-    
-    try {
-        const result = getPublicKeyFromWIF(wif);
-        display.innerHTML = `
-            <span class="info-box__label">✅ Your Neurai address</span>
-            <code class="info-box__value">${escapeHtml(result.address)}</code>
-            <span class="info-box__label">Your public key</span>
-            <code class="info-box__value">${escapeHtml(result.publicKey)}</code>
-        `;
-        display.classList.remove('error');
-        display.classList.add('success', 'info-box--stacked');
-        display.style.display = 'flex';
-    } catch (error) {
-        display.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
-        display.classList.remove('success');
-        display.classList.add('error');
-        display.classList.remove('info-box--stacked');
-        display.style.display = 'flex';
-    }
+    updatePubkeyDisplay(wif, display);
 });
 
 /**
@@ -85,67 +215,14 @@ document.getElementById('sender-wif')?.addEventListener('input', function() {
 document.getElementById('recipient-wif')?.addEventListener('input', function() {
     const wif = this.value.trim();
     const display = document.getElementById('recipient-pubkey-display');
-    
-    if (!wif) {
-        display.innerHTML = '';
-        display.classList.remove('success', 'error', 'info-box--stacked');
-        display.style.display = 'none';
-        return;
-    }
-    
-    try {
-        const result = getPublicKeyFromWIF(wif);
-        display.innerHTML = `
-            <span class="info-box__label">✅ Your Neurai address</span>
-            <code class="info-box__value">${escapeHtml(result.address)}</code>
-            <span class="info-box__label">Your public key</span>
-            <code class="info-box__value">${escapeHtml(result.publicKey)}</code>
-        `;
-        display.classList.remove('error');
-        display.classList.add('success', 'info-box--stacked');
-        display.style.display = 'flex';
-    } catch (error) {
-        display.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
-        display.classList.remove('success');
-        display.classList.add('error');
-        display.classList.remove('info-box--stacked');
-        display.style.display = 'flex';
-    }
+    updatePubkeyDisplay(wif, display);
 });
 
 /**
  * Updates recipient counter
  */
 document.getElementById('recipients')?.addEventListener('input', function() {
-    const lines = this.value.trim().split('\n').filter(line => line.trim().length > 0);
-    const display = document.getElementById('recipients-count');
-    
-    if (lines.length === 0) {
-        display.innerHTML = '';
-        return;
-    }
-    
-    let validCount = 0;
-    let invalidCount = 0;
-    
-    lines.forEach(line => {
-        const pubKey = line.trim();
-        if (pubKey.length === 66 && /^[0-9a-fA-F]+$/.test(pubKey)) {
-            validCount++;
-        } else {
-            invalidCount++;
-        }
-    });
-    
-    if (invalidCount > 0) {
-        display.innerHTML = `<strong>⚠️ ${validCount} valid, ${invalidCount} invalid</strong>`;
-        display.classList.add('error');
-        display.classList.remove('success');
-    } else {
-        display.innerHTML = `<strong>✅ ${validCount} recipient${validCount !== 1 ? 's' : ''}</strong>`;
-        display.classList.remove('error');
-        display.classList.add('success');
-    }
+    updateRecipientsCount(this.value);
 });
 
 /**
@@ -155,74 +232,48 @@ function encryptMessage() {
     const resultBox = document.getElementById('encrypt-result');
     resultBox.innerHTML = '';
     resultBox.classList.remove('show', 'success', 'error');
-    
+
     try {
         // Get values
         const senderWIF = document.getElementById('sender-wif').value.trim();
         const recipientsText = document.getElementById('recipients').value.trim();
         const plaintext = document.getElementById('plaintext').value.trim();
-        
+
         // Validate
-        if (!senderWIF) {
-            throw new Error('You must enter your WIF private key');
+        const validation = validateEncryptionInputs(senderWIF, recipientsText, plaintext);
+        if (!validation.isValid) {
+            throw new Error(validation.error);
         }
-        
-        if (!recipientsText) {
-            throw new Error('You must enter at least one recipient public key');
-        }
-        
-        if (!plaintext) {
-            throw new Error('Message cannot be empty');
-        }
-        
+
         // Process recipients
         const recipients = recipientsText.split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0);
-        
-        if (recipients.length === 0) {
-            throw new Error('You must enter at least one valid public key');
-        }
-        
-        // Validate public keys
-        recipients.forEach((pubKey, index) => {
-            if (pubKey.length !== 66) {
-                throw new Error(`Recipient ${index + 1}: key must be 66 characters (has ${pubKey.length})`);
-            }
-            if (!/^[0-9a-fA-F]+$/.test(pubKey)) {
-                throw new Error(`Recipient ${index + 1}: key must be hexadecimal`);
-            }
-        });
-        
+
         // Encrypt
         const encryptedMsg = encryptGroupMessage(senderWIF, recipients, plaintext);
         lastEncryptedMessage = encryptedMsg;
-        
+
         // Show result
-        resultBox.innerHTML = `
-            <h3>✅ Message Encrypted Successfully</h3>
+        const content = `
             <p class="result-meta"><strong>Recipients:</strong> ${recipients.length}</p>
             <p class="result-meta"><strong>Ciphertext size:</strong> ${encryptedMsg.ciphertext.length} hex characters</p>
             <p class="result-meta"><strong>Algorithm:</strong> ${encryptedMsg.cipher}</p>
-            
+
             <div class="result-actions">
                 <h4 class="result-meta">Encrypted Message JSON:</h4>
                 <button class="copy-button" onclick="copyToClipboard(event, 'encrypted-json-output')">📋 Copy JSON</button>
             </div>
             <pre id="encrypted-json-output">${JSON.stringify(encryptedMsg, null, 2)}</pre>
-            
+
             <p style="margin-top: 20px;">
                 <strong>Recipients can use the "Decrypt Message" tab with their WIF private key.</strong>
             </p>
         `;
-        resultBox.classList.add('show', 'success');
-        
+        showResult(resultBox, 'Message Encrypted Successfully', content, true);
+
     } catch (error) {
-        resultBox.innerHTML = `
-            <h3>❌ Encryption Error</h3>
-            <p>${error.message}</p>
-        `;
-        resultBox.classList.add('show', 'error');
+        showResult(resultBox, 'Encryption Error', `<p>${error.message}</p>`, false);
     }
 }
 
@@ -233,35 +284,20 @@ function decryptMessage() {
     const resultBox = document.getElementById('decrypt-result');
     resultBox.innerHTML = '';
     resultBox.classList.remove('show', 'success', 'error');
-    
+
     try {
         // Get values
         const recipientWIF = document.getElementById('recipient-wif').value.trim();
         const encryptedJSON = document.getElementById('encrypted-json').value.trim();
-        
+
         // Validate
-        if (!recipientWIF) {
-            throw new Error('You must enter your WIF private key');
+        const validation = validateDecryptionInputs(recipientWIF, encryptedJSON);
+        if (!validation.isValid) {
+            throw new Error(validation.error);
         }
-        
-        if (!encryptedJSON) {
-            throw new Error('You must paste the encrypted message JSON');
-        }
-        
-        // Parse JSON
-        let encryptedMsg;
-        try {
-            encryptedMsg = JSON.parse(encryptedJSON);
-        } catch (e) {
-            throw new Error('Invalid JSON: ' + e.message);
-        }
-        
-        // Validate structure
-        if (!encryptedMsg.version || !encryptedMsg.ephemeral_public || 
-            !encryptedMsg.ciphertext || !encryptedMsg.encrypted_keys) {
-            throw new Error('Invalid JSON: missing required fields');
-        }
-        
+
+        const encryptedMsg = validation.encryptedMsg;
+
         // Decrypt
         const plaintext = decryptGroupMessage(encryptedMsg, recipientWIF);
 
@@ -280,9 +316,7 @@ function decryptMessage() {
             senderAddress = 'Error: ' + error.message;
         }
 
-        resultBox.innerHTML = `
-            <h3>✅ Message Decrypted Successfully</h3>
-
+        const content = `
             <div class="info-box success info-box--stacked">
                 <span class="info-box__label">Sender Neurai address:</span>
                 <code class="info-box__value">${escapeHtml(senderAddress)}</code>
@@ -308,14 +342,10 @@ function decryptMessage() {
                 <p style="font-size: 1.2em; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(plaintext)}</p>
             </div>
         `;
-        resultBox.classList.add('show', 'success');
-        
+        showResult(resultBox, 'Message Decrypted Successfully', content, true);
+
     } catch (error) {
-        resultBox.innerHTML = `
-            <h3>❌ Decryption Error</h3>
-            <p style="white-space: pre-wrap;">${escapeHtml(error.message)}</p>
-        `;
-        resultBox.classList.add('show', 'error');
+        showResult(resultBox, 'Decryption Error', `<p style="white-space: pre-wrap;">${escapeHtml(error.message)}</p>`, false);
     }
 }
 

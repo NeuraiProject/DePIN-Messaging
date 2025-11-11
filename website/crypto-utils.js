@@ -3,16 +3,26 @@
  * Cryptography utilities for DePIN group messaging using Neurai keys
  */
 
-// Function to get EC instance (lazy initialization)
+// Constants
+const AES_IV = '00000000000000000000000000000000'; // Fixed IV for AES-CBC
+const AES_KEY_SIZE = 256; // AES-256
+const CURVE_NAME = 'secp256k1';
+const CURRENT_VERSION = '1.0';
+const CIPHER_ALGORITHM = 'AES-CBC-256';
+
+/**
+ * Function to get EC instance (lazy initialization)
+ * @returns {Object} Elliptic curve instance
+ */
 function getEC() {
     if (!window.ecInstance) {
         console.log('Attempting to initialize EC...');
         console.log('typeof elliptic:', typeof elliptic);
         console.log('window.elliptic:', typeof window.elliptic);
-        
+
         // Try to get elliptic from different sources
         let EC;
-        
+
         if (typeof elliptic !== 'undefined' && elliptic.ec) {
             // elliptic from CDN
             console.log('✅ Using elliptic from global variable');
@@ -27,9 +37,9 @@ function getEC() {
             console.log('Available global variables:', Object.keys(window).filter(k => k.toLowerCase().includes('ellip')));
             throw new Error('The elliptic library is not loaded. Make sure to include: <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>');
         }
-        
-        console.log('Creating EC instance with secp256k1...');
-        window.ecInstance = new EC('secp256k1');
+
+        console.log(`Creating EC instance with ${CURVE_NAME}...`);
+        window.ecInstance = new EC(CURVE_NAME);
         console.log('✅ EC initialized correctly');
     }
     return window.ecInstance;
@@ -125,7 +135,7 @@ function encryptGroupMessage(senderWIF, recipientPubKeys, plaintext) {
         const encrypted = CryptoJS.AES.encrypt(plaintextBytes, aesKey, {
             mode: CryptoJS.mode.CBC,
             padding: CryptoJS.pad.Pkcs7,
-            iv: CryptoJS.enc.Hex.parse('00000000000000000000000000000000')
+            iv: CryptoJS.enc.Hex.parse(AES_IV)
         });
         
         const ciphertext = encrypted.ciphertext.toString();
@@ -156,12 +166,12 @@ function encryptGroupMessage(senderWIF, recipientPubKeys, plaintext) {
         
         // Prepare encrypted message
         return {
-            version: "1.0",
+            version: CURRENT_VERSION,
             sender_pubkey: publicKeyToHex(senderPubKey, true),
             ephemeral_public: publicKeyToHex(ephemeralPublic, true),
             ciphertext: ciphertext,
             encrypted_keys: encryptedKeys,
-            cipher: "AES-CBC-256"
+            cipher: CIPHER_ALGORITHM
         };
         
     } catch (error) {
@@ -228,7 +238,7 @@ function decryptGroupMessage(encryptedMsg, recipientWIF) {
             {
                 mode: CryptoJS.mode.CBC,
                 padding: CryptoJS.pad.Pkcs7,
-                iv: CryptoJS.enc.Hex.parse('00000000000000000000000000000000')
+                iv: CryptoJS.enc.Hex.parse(AES_IV)
             }
         );
         

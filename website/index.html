@@ -13,158 +13,162 @@
             <p class="subtitle">Secure encryption system using Neurai keys (WIF) and AES-256</p>
         </header>
 
-        <div class="tabs">
-            <button class="tab-button active" onclick="showTab(event, 'encoder')">
+        <nav class="tabs" role="tablist" aria-label="Main navigation">
+            <button class="tab-button active" onclick="showTab(event, 'encoder')" role="tab" aria-selected="true" aria-controls="encoder-tab">
                 🔒 Encrypt Message
             </button>
-            <button class="tab-button" onclick="showTab(event, 'decoder')">
+            <button class="tab-button" onclick="showTab(event, 'decoder')" role="tab" aria-selected="false" aria-controls="decoder-tab">
                 🔓 Decrypt Message
             </button>
-            <button class="tab-button" onclick="showTab(event, 'info')">
+            <button class="tab-button" onclick="showTab(event, 'info')" role="tab" aria-selected="false" aria-controls="info-tab">
                 ℹ️ Information
             </button>
-        </div>
+        </nav>
 
-        <!-- TAB: ENCODER -->
-        <div id="encoder-tab" class="tab-content active">
-            <div class="card">
-                <h2>🔒 Encrypt Message for Group</h2>
-                
-                <div class="form-group">
-                    <label for="sender-wif">
-                        <strong>Your Neurai Private Key (WIF)</strong>
-                        <span class="hint">Format: KyXXXXX... or LXXXXX...</span>
-                    </label>
-                    <input type="password" id="sender-wif" placeholder="Ky9XaATe9BQkDiQ4SV24m7jfwaX6NWPTzYmHrnjwiF9kDsB5SYw9">
-                    <button class="btn-small" onclick="toggleVisibility(event, 'sender-wif')">👁️ Show</button>
-                    <div id="sender-pubkey-display" class="info-box"></div>
-                </div>
+        <main>
+            <!-- TAB: ENCODER -->
+            <section id="encoder-tab" class="tab-content active" role="tabpanel" aria-labelledby="encoder-tab-button">
+                <article class="card">
+                    <h2>🔒 Encrypt Message for Group</h2>
 
-                <div class="form-group">
-                    <label for="recipients">
-                        <strong>Recipients' Public Keys (compressed hex)</strong>
-                        <span class="hint">One per line, 66 hex characters each</span>
-                    </label>
-                    <textarea id="recipients" rows="5" placeholder="03891325b880ef885b533bde2005ae4cec2515d76fc75b00cba6e3a700f00b16fa
+                    <form class="form-group">
+                        <label for="sender-wif">
+                            <strong>Your Neurai Private Key (WIF)</strong>
+                            <span class="hint">Format: KyXXXXX... or LXXXXX...</span>
+                        </label>
+                        <input type="password" id="sender-wif" placeholder="Ky9XaATe9BQkDiQ4SV24m7jfwaX6NWPTzYmHrnjwiF9kDsB5SYw9" aria-describedby="sender-hint">
+                        <button class="btn-small" onclick="toggleVisibility(event, 'sender-wif')" type="button" aria-label="Toggle password visibility">👁️ Show</button>
+                        <div id="sender-pubkey-display" class="info-box" aria-live="polite"></div>
+                    </form>
+
+                    <form class="form-group">
+                        <label for="recipients">
+                            <strong>Recipients' Public Keys (compressed hex)</strong>
+                            <span class="hint">One per line, 66 hex characters each</span>
+                        </label>
+                        <textarea id="recipients" rows="5" placeholder="03891325b880ef885b533bde2005ae4cec2515d76fc75b00cba6e3a700f00b16fa
 0214d1dc04b083d8ef72166b9b88a5e3723537c874b7f923bb23f5b9abd412ef8c
-03002783a1c63e5815eed9305e4965e3a7cd2da46776d02023e7ada3351e5788ef"></textarea>
-                    <div id="recipients-count" class="info-box"></div>
-                </div>
+03002783a1c63e5815eed9305e4965e3a7cd2da46776d02023e7ada3351e5788ef" aria-describedby="recipients-hint"></textarea>
+                        <div id="recipients-count" class="info-box" aria-live="polite"></div>
+                    </form>
 
-                <div class="form-group">
-                    <label for="plaintext">
-                        <strong>Message to Encrypt</strong>
-                    </label>
-                    <textarea id="plaintext" rows="4" placeholder="Write your secret message here..."></textarea>
-                </div>
+                    <form class="form-group">
+                        <label for="plaintext">
+                            <strong>Message to Encrypt</strong>
+                        </label>
+                        <textarea id="plaintext" rows="4" placeholder="Write your secret message here..." aria-label="Message to encrypt"></textarea>
+                    </form>
 
-                <button class="btn-primary" onclick="encryptMessage()">
-                    🔒 Encrypt Message
-                </button>
+                    <button class="btn-primary" onclick="encryptMessage()" type="button">
+                        🔒 Encrypt Message
+                    </button>
 
-                <div id="encrypt-result" class="result-box"></div>
-            </div>
-        </div>
+                    <div id="encrypt-result" class="result-box" aria-live="polite"></div>
+                </article>
+            </section>
 
-        <!-- TAB: DECODER -->
-        <div id="decoder-tab" class="tab-content">
-            <div class="card">
-                <h2>🔓 Decrypt Message</h2>
-                
-                <div class="form-group">
-                    <label for="recipient-wif">
-                        <strong>Your Neurai Private Key (WIF)</strong>
-                        <span class="hint">You must be authorized as a recipient</span>
-                    </label>
-                    <input type="password" id="recipient-wif" placeholder="L497y1vxt4QZjEVWNSFDUm2Zk2aKxueK8uF86vC4idY8bohMMgfL">
-                    <button class="btn-small" onclick="toggleVisibility(event, 'recipient-wif')">👁️ Show</button>
-                    <div id="recipient-pubkey-display" class="info-box"></div>
-                </div>
+            <!-- TAB: DECODER -->
+            <section id="decoder-tab" class="tab-content" role="tabpanel" aria-labelledby="decoder-tab-button">
+                <article class="card">
+                    <h2>🔓 Decrypt Message</h2>
 
-                <div class="form-group">
-                    <label for="encrypted-json">
-                        <strong>Encrypted Message (JSON)</strong>
-                        <span class="hint">Paste here the complete encrypted message JSON</span>
-                    </label>
-                    <textarea id="encrypted-json" rows="10" placeholder='{"version":"1.0","sender_pubkey":"03891...", ...}'></textarea>
-                </div>
+                    <form class="form-group">
+                        <label for="recipient-wif">
+                            <strong>Your Neurai Private Key (WIF)</strong>
+                            <span class="hint">You must be authorized as a recipient</span>
+                        </label>
+                        <input type="password" id="recipient-wif" placeholder="L497y1vxt4QZjEVWNSFDUm2Zk2aKxueK8uF86vC4idY8bohMMgfL" aria-describedby="recipient-hint">
+                        <button class="btn-small" onclick="toggleVisibility(event, 'recipient-wif')" type="button" aria-label="Toggle password visibility">👁️ Show</button>
+                        <div id="recipient-pubkey-display" class="info-box" aria-live="polite"></div>
+                    </form>
 
-                <button class="btn-primary" onclick="decryptMessage()">
-                    🔓 Decrypt Message
-                </button>
+                    <form class="form-group">
+                        <label for="encrypted-json">
+                            <strong>Encrypted Message (JSON)</strong>
+                            <span class="hint">Paste here the complete encrypted message JSON</span>
+                        </label>
+                        <textarea id="encrypted-json" rows="10" placeholder='{"version":"1.0","sender_pubkey":"03891...", ...}' aria-describedby="json-hint"></textarea>
+                    </form>
 
-                <div id="decrypt-result" class="result-box"></div>
-            </div>
-        </div>
+                    <button class="btn-primary" onclick="decryptMessage()" type="button">
+                        🔓 Decrypt Message
+                    </button>
 
-        <!-- TAB: INFO -->
-        <div id="info-tab" class="tab-content">
-            <div class="card">
-                <h2>ℹ️ System Information</h2>
-                
-                <h3>🔐 How does it work?</h3>
-                <div class="info-section">
-                    <p><strong>Group Encryption:</strong> Allows a sender to encrypt a message once and multiple recipients can decrypt it with their private keys.</p>
-                    
-                    <h4>Encryption Process:</h4>
-                    <ol>
-                        <li>A random ephemeral key is generated (unique per message)</li>
-                        <li>The message is encrypted ONCE with AES-256-CBC using the ephemeral key</li>
-                        <li>For each recipient:
-                            <ul>
-                                <li>A shared secret is calculated using ECDH</li>
-                                <li>The ephemeral key is encrypted with that shared secret</li>
-                            </ul>
-                        </li>
-                    </ol>
+                    <div id="decrypt-result" class="result-box" aria-live="polite"></div>
+                </article>
+            </section>
 
-                    <h4>Decryption Process:</h4>
-                    <ol>
-                        <li>The recipient calculates the same shared secret with their private key</li>
-                        <li>Decrypts their copy of the ephemeral key</li>
-                        <li>Uses the ephemeral key to decrypt the message</li>
-                    </ol>
-                </div>
+            <!-- TAB: INFO -->
+            <section id="info-tab" class="tab-content" role="tabpanel" aria-labelledby="info-tab-button">
+                <article class="card">
+                    <h2>ℹ️ System Information</h2>
 
-                <h3>🛡️ Security</h3>
-                <div class="info-section">
-                    <ul>
-                        <li>✅ <strong>AES-256-CBC:</strong> Military-grade symmetric encryption</li>
-                        <li>✅ <strong>ECDH (secp256k1):</strong> Elliptic curve key exchange</li>
-                        <li>✅ <strong>Perfect Forward Secrecy:</strong> Each message uses a unique ephemeral key</li>
-                        <li>✅ <strong>Neurai Address:</strong> Uses standard Neurai keys (WIF)</li>
-                    </ul>
-                </div>
+                    <section class="info-section">
+                        <h3>🔐 How does it work?</h3>
+                        <div>
+                            <p><strong>Group Encryption:</strong> Allows a sender to encrypt a message once and multiple recipients can decrypt it with their private keys.</p>
 
-                <h3>🔑 Test Keys</h3>
-                <div class="info-section">
-                    <p><strong>⚠️ WARNING:</strong> These keys are for testing only. Never use real Neurai keys.</p>
-                    
-                    <div class="test-keys">
-                        <h4>Alice (Sender)</h4>
-                        <code>Private: Ky9XaATe9BQkDiQ4SV24m7jfwaX6NWPTzYmHrnjwiF9kDsB5SYw9</code><br>
-                        <code>Public: 03891325b880ef885b533bde2005ae4cec2515d76fc75b00cba6e3a700f00b16fa</code>
+                            <h4>Encryption Process:</h4>
+                            <ol>
+                                <li>A random ephemeral key is generated (unique per message)</li>
+                                <li>The message is encrypted ONCE with AES-256-CBC using the ephemeral key</li>
+                                <li>For each recipient:
+                                    <ul>
+                                        <li>A shared secret is calculated using ECDH</li>
+                                        <li>The ephemeral key is encrypted with that shared secret</li>
+                                    </ul>
+                                </li>
+                            </ol>
 
-                        <h4>Bob (Recipient)</h4>
-                        <code>Private: L497y1vxt4QZjEVWNSFDUm2Zk2aKxueK8uF86vC4idY8bohMMgfL</code><br>
-                        <code>Public: 0214d1dc04b083d8ef72166b9b88a5e3723537c874b7f923bb23f5b9abd412ef8c</code>
+                            <h4>Decryption Process:</h4>
+                            <ol>
+                                <li>The recipient calculates the same shared secret with their private key</li>
+                                <li>Decrypts their copy of the ephemeral key</li>
+                                <li>Uses the ephemeral key to decrypt the message</li>
+                            </ol>
+                        </div>
+                    </section>
 
-                        <h4>Charlie (Recipient)</h4>
-                        <code>Private: L1SWnTnp9wYAYHeudy5TGkmSdCfLU2WhAH7aERB5KBFNxnjcMaqA</code><br>
-                        <code>Public: 03002783a1c63e5815eed9305e4965e3a7cd2da46776d02023e7ada3351e5788ef</code>
-                    </div>
-                </div>
+                    <section class="info-section">
+                        <h3>🛡️ Security</h3>
+                        <ul>
+                            <li>✅ <strong>AES-256-CBC:</strong> Military-grade symmetric encryption</li>
+                            <li>✅ <strong>ECDH (secp256k1):</strong> Elliptic curve key exchange</li>
+                            <li>✅ <strong>Perfect Forward Secrecy:</strong> Each message uses a unique ephemeral key</li>
+                            <li>✅ <strong>Neurai Address:</strong> Uses standard Neurai keys (WIF)</li>
+                        </ul>
+                    </section>
 
-                <h3>📚 Libraries</h3>
-                <div class="info-section">
-                    <ul>
-                        <li><strong>elliptic.js:</strong> Elliptic curve cryptography (ECDSA/ECDH)</li>
-                        <li><strong>crypto-js:</strong> AES and SHA-256 implementations</li>
-                        <li><strong>NeuraiKey:</strong> Neurai key management (WIF encoding/decoding)</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+                    <section class="info-section">
+                        <h3>🔑 Test Keys</h3>
+                        <p><strong>⚠️ WARNING:</strong> These keys are for testing only. Never use real Neurai keys.</p>
+
+                        <div class="test-keys">
+                            <h4>Alice (Sender)</h4>
+                            <code>Private: Ky9XaATe9BQkDiQ4SV24m7jfwaX6NWPTzYmHrnjwiF9kDsB5SYw9</code><br>
+                            <code>Public: 03891325b880ef885b533bde2005ae4cec2515d76fc75b00cba6e3a700f00b16fa</code>
+
+                            <h4>Bob (Recipient)</h4>
+                            <code>Private: L497y1vxt4QZjEVWNSFDUm2Zk2aKxueK8uF86vC4idY8bohMMgfL</code><br>
+                            <code>Public: 0214d1dc04b083d8ef72166b9b88a5e3723537c874b7f923bb23f5b9abd412ef8c</code>
+
+                            <h4>Charlie (Recipient)</h4>
+                            <code>Private: L1SWnTnp9wYAYHeudy5TGkmSdCfLU2WhAH7aERB5KBFNxnjcMaqA</code><br>
+                            <code>Public: 03002783a1c63e5815eed9305e4965e3a7cd2da46776d02023e7ada3351e5788ef</code>
+                        </div>
+                    </section>
+
+                    <section class="info-section">
+                        <h3>📚 Libraries</h3>
+                        <ul>
+                            <li><strong>elliptic.js:</strong> Elliptic curve cryptography (ECDSA/ECDH)</li>
+                            <li><strong>crypto-js:</strong> AES and SHA-256 implementations</li>
+                            <li><strong>NeuraiKey:</strong> Neurai key management (WIF encoding/decoding)</li>
+                        </ul>
+                    </section>
+                </article>
+            </section>
+        </main>
 
         <footer>
             <p>🔐 Neurai - DePIN Encryption System - Web Version</p>
