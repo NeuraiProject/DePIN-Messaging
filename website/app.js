@@ -269,7 +269,7 @@ function decryptMessage() {
         const senderPubKey = encryptedMsg.sender_pubkey || 'N/A';
         const recipientInfo = getPublicKeyFromWIF(recipientWIF);
 
-        // Derivar dirección del emisor desde su clave pública usando NeuraiKey
+        // Derive sender's address from their public key using NeuraiKey
         let senderAddress = 'N/A';
         try {
             if (senderPubKey !== 'N/A') {

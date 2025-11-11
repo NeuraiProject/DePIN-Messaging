@@ -136,15 +136,15 @@ function encryptGroupMessage(senderWIF, recipientPubKeys, plaintext) {
         for (const recipientPubHex of recipientPubKeys) {
             const recipientPubKey = decodeCompressedPublicKey(recipientPubHex);
             
-            // ECDH: secreto compartido
+            // ECDH: shared secret
             const sharedSecret = recipientPubKey.mul(ephemeralPrivate);
             const sharedX = sharedSecret.getX().toArray('be', 32);
             
-            // Derivar clave wrap AES-256
+            // Derive wrap key AES-256
             const sharedSecretWA = CryptoJS.lib.WordArray.create(sharedX);
-            const wrapKey = CryptoJS.SHA256(sharedSecretWA); // 32 bytes para AES-256
+            const wrapKey = CryptoJS.SHA256(sharedSecretWA); // 32 bytes for AES-256
             
-            // Cifrar la clave del mensaje (32 bytes)
+            // Encrypt the message key (32 bytes)
             const keyToWrap = CryptoJS.lib.WordArray.create(ephemeralBytes);
             const wrappedKey = CryptoJS.AES.encrypt(keyToWrap, wrapKey, {
                 mode: CryptoJS.mode.ECB,
@@ -178,33 +178,33 @@ function encryptGroupMessage(senderWIF, recipientPubKeys, plaintext) {
 function decryptGroupMessage(encryptedMsg, recipientWIF) {
     try {
         const ec = getEC();
-        // Decodificar clave privada del destinatario
+        // Decode recipient's private key
         const recipientDecoded = decodeWIF(recipientWIF);
         const recipientKey = ec.keyFromPrivate(recipientDecoded.privateKey);
         const recipientPubKey = recipientKey.getPublic();
         const recipientPubHex = publicKeyToHex(recipientPubKey, true);
         
-        // Verificar que este destinatario está autorizado
+        // Verify that this recipient is authorized
         if (!(recipientPubHex in encryptedMsg.encrypted_keys)) {
             throw new Error(
-                `No estás autorizado para descifrar este mensaje.\n` +
-                `Tu clave pública: ${recipientPubHex}\n` +
-                `Claves autorizadas: ${Object.keys(encryptedMsg.encrypted_keys).join(', ')}`
+                `You are not authorized to decrypt this message.\n` +
+                `Your public key: ${recipientPubHex}\n` +
+                `Authorized keys: ${Object.keys(encryptedMsg.encrypted_keys).join(', ')}`
             );
         }
         
-        // Reconstruir clave pública efímera
+        // Reconstruct ephemeral public key
         const ephemeralPublic = decodeCompressedPublicKey(encryptedMsg.ephemeral_public);
         
-        // ECDH: secreto compartido
+        // ECDH: shared secret
         const sharedSecret = ephemeralPublic.mul(recipientKey.getPrivate());
         const sharedX = sharedSecret.getX().toArray('be', 32);
         
-        // Derivar clave wrap AES-256
+        // Derive wrap key AES-256
         const sharedSecretWA = CryptoJS.lib.WordArray.create(sharedX);
         const wrapKey = CryptoJS.SHA256(sharedSecretWA); // 32 bytes
         
-        // Descifrar la clave del mensaje
+        // Decrypt the message key
         const encryptedKeyHex = encryptedMsg.encrypted_keys[recipientPubHex];
         const encryptedKeyWA = CryptoJS.enc.Hex.parse(encryptedKeyHex);
         
@@ -217,10 +217,10 @@ function decryptGroupMessage(encryptedMsg, recipientWIF) {
             }
         );
         
-        // Derivar clave AES-256 desde el material de clave
+        // Derive AES-256 key from key material
         const aesKey = CryptoJS.SHA256(unwrappedKey); // 32 bytes
         
-        // Descifrar el mensaje
+        // Decrypt the message
         const ciphertextWA = CryptoJS.enc.Hex.parse(encryptedMsg.ciphertext);
         const decrypted = CryptoJS.AES.decrypt(
             { ciphertext: ciphertextWA },
@@ -242,7 +242,7 @@ function decryptGroupMessage(encryptedMsg, recipientWIF) {
 /**
  * Converts a public key point to hex format
  * @param {Object} pubKey - Elliptic curve point
- * @param {boolean} compressed - Si debe ser comprimido
+ * @param {boolean} compressed - If it should be compressed
  * @returns {string} - Public key in hex format
  */
 function publicKeyToHex(pubKey, compressed = true) {
@@ -264,25 +264,25 @@ function hexToBytes(hex) {
 
 /**
  * Gets public key and address from a WIF private key
- * @param {string} wif - Clave privada en formato WIF
+ * @param {string} wif - Private key in WIF format
  * @returns {Object} - {publicKey: string, address: string}
  */
 function getPublicKeyFromWIF(wif) {
     try {
-        // Determinar la red
+        // Determine the network
         let network = 'xna';
         if (wif.startsWith('c') || wif.startsWith('9')) {
             network = 'xna-test';
         }
 
-        // Usar NeuraiKey para obtener la información completa
+        // Use NeuraiKey to get the complete information
         const addressData = NeuraiKey.getAddressByWIF(network, wif);
 
-        // Convertir la clave privada hex a bytes para obtener la pública con elliptic
+        // Convert private key hex to bytes for elliptic to get public key
         const privateKeyHex = addressData.privateKey;
         const privateKeyBytes = new Uint8Array(privateKeyHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
 
-        // Usar elliptic para obtener la clave pública
+        // Use elliptic to get the public key
         const ec = getEC();
         const key = ec.keyFromPrivate(privateKeyBytes);
         const publicKeyHex = publicKeyToHex(key.getPublic(), true);
